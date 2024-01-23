@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model product {
+  product_id           Int                    @id @default(autoincrement())
+  name                 String
+  logo                 String
+  infomation           String                 @db.LongText
+  description          String                 @db.LongText
+  brand_id             Int
+  is_deleted           Boolean                @default(false)
+  create_at            DateTime               @default(now())
+  update_at            DateTime               @default(now())
+  rating               Float                  @default(5)
+  product_options      product_option[]
+  product_ref_category product_ref_category[]
+  brand                brand                  @relation(fields: [brand_id], references: [id])
+  comment              comment[]
+
+  @@index([brand_id], map: "products_brand_id_fkey")
+  @@map("products")
+}
+
+model product_ref_category {
+  id          Int      @id @default(autoincrement())
+  category_id Int
+  product_id  Int
+  category    category @relation(fields: [category_id], references: [id])
+  product     product  @relation(fields: [product_id], references: [product_id])
+
+  @@index([category_id], map: "product_ref_category_category_id_fkey")
+  @@index([product_id], map: "product_ref_category_product_id_fkey")
+}
+
+model category {
+  id                   Int                    @id @default(autoincrement())
+  name                 String
+  icon                 String
+  is_deleted           Boolean                @default(false)
+  product_ref_category product_ref_category[]
+
+  @@map("categories")
+}
+
+model product_option {
+  id         Int                  @id @default(autoincrement())
+  name       String
+  price_buy  Int
+  price_sell Int
+  amount     Int
+  discount   Int                  @default(0)
+  image      String
+  is_deleted Boolean              @default(false)
+  product_id Int
+  products   product              @relation(fields: [product_id], references: [product_id])
+  order_list order_list_product[]
+
+  @@index([product_id], map: "product_options_product_id_fkey")
+  @@map("product_options")
+}
+
+model brand {
+  id       Int       @id @default(autoincrement())
+  name     String
+  products product[]
+
+  @@map("brands")
+}
+
+model promotion_banner {
+  id        Int     @id @default(autoincrement())
+  image     String
+  type      Int     @default(1)
+  is_active Boolean @default(true)
+  name      String?
+
+  @@map("promotion_banner")
+}
+
+model user {
+  user_id        Int            @id @default(autoincrement())
+  gender         Boolean        @default(true)
+  first_name     String?
+  last_name      String?
+  email          String         @unique
+  login_name     String
+  login_password String
+  phone_number   String
+  address        String?
+  avartar        String?
+  is_deleted     Boolean        @default(true)
+  facebook_id    Int?           @unique
+  facebook       user_facebook?
+  comment        comment[]
+  orders         orders[]
+}
+
+model user_facebook {
+  id         Int    @id @default(autoincrement())
+  user_id    Int    @unique
+  facebookId String
+  token      String
+
+  user user? @relation(fields: [user_id], references: [user_id])
+}
+
+model comment {
+  id             Int             @id @default(autoincrement())
+  rating         Int             @default(5)
+  user_id        Int
+  product_id     Int
+  content        String          @db.MediumText()
+  createAt       DateTime        @default(now())
+  image          comment_image[]
+  seller_reply   String          @db.MediumText()
+  seller_replyAt DateTime        @default(now())
+  user           user?           @relation(fields: [user_id], references: [user_id])
+  product        product         @relation(fields: [product_id], references: [product_id])
+}
+
+model comment_image {
+  id         Int     @id @default(autoincrement())
+  image      String
+  comment_id Int
+  comment    comment @relation(fields: [comment_id], references: [id])
+}
+
+model order_status {
+  id          Int      @id @default(autoincrement())
+  status_name String
+  order       orders[]
+}
+
+model order_list_product {
+  id        Int            @id @default(autoincrement())
+  order_id  Int
+  option_id Int
+  price     Int
+  amount    Int
+  discount  Int
+  option    product_option @relation(fields: [option_id], references: [id])
+  order     orders         @relation(fields: [order_id], references: [id])
+}
+
+model orders {
+  id         Int                  @id @default(autoincrement())
+  createAt   DateTime             @default(now())
+  status_id  Int                  @default(1)
+  user_id    Int
+  //
+  status     order_status         @relation(fields: [status_id], references: [id])
+  user       user                 @relation(fields: [user_id], references: [user_id])
+  order_list order_list_product[]
+
+  @@map("orders_tbl")
+}
