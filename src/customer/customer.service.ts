@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   Order,
@@ -111,7 +115,8 @@ export class CustomerService {
       },
     });
     totalPage = Math.ceil(orderNum / orderPerPage);
-    if (pageOrder > totalPage) throw new BadRequestException('page not found');
+    if (orderNum == 0) return { totalPage: 0, value: [] };
+    if (pageOrder > totalPage) throw new NotFoundException('page not found');
     const orders = await this.prismaService.orders.findMany({
       where: {
         user_id: customerId,

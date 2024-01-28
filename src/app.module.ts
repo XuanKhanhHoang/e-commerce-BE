@@ -5,6 +5,7 @@ import { ProductModule } from './products/products.module';
 import { WebinfoModule } from './webinfo/webinfo.module';
 import { AuthModule } from './auth/auth.module';
 import { CustomerModule } from './customer/customer.module';
+import { CartModule } from './cart/cart.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -15,6 +16,7 @@ import { CustomerModule } from './customer/customer.module';
     WebinfoModule,
     AuthModule,
     CustomerModule,
+    CartModule,
   ],
 })
 export class AppModule {}

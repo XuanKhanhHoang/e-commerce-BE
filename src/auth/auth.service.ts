@@ -57,7 +57,7 @@ export class AuthService {
   }
   async Login(
     data: UserLoginDTO,
-  ): Promise<{ access_token: string; value: userGeneral }> {
+  ): Promise<{ access_token: string; value: userGeneral } | any> {
     let user = await this.prismaService.user.findFirst({
       where: {
         login_name: {
@@ -66,10 +66,10 @@ export class AuthService {
         is_deleted: false,
       },
     });
-
-    if (!user) throw new UnauthorizedException();
+    // return await bcrypt.hashSync('Khanhpopo1S', 12);
+    if (!user) throw new UnauthorizedException('user or password wrong');
     let auth = await bcrypt.compare(data.password, user.login_password);
-    if (!auth) throw new UnauthorizedException();
+    if (!auth) throw new UnauthorizedException('user or password wrong');
     let access_token = await this.jwtService.signAsync({
       user_id: user.user_id,
       role: customerRole,

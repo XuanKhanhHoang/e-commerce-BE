@@ -14,12 +14,24 @@ export class PrismaService
           url: configServive.get('DATABASE_URL'),
         },
       },
-      log: [
-        { emit: 'event', level: 'query' },
-        { emit: 'stdout', level: 'info' },
-        { emit: 'stdout', level: 'warn' },
-        { emit: 'stdout', level: 'error' },
-      ],
+      // log: [
+      //   {
+      //     emit: 'stdout',
+      //     level: 'query',
+      //   },
+      //   {
+      //     emit: 'stdout',
+      //     level: 'error',
+      //   },
+      //   {
+      //     emit: 'stdout',
+      //     level: 'info',
+      //   },
+      //   {
+      //     emit: 'stdout',
+      //     level: 'warn',
+      //   },
+      // ],
       errorFormat: 'colorless',
     });
   }

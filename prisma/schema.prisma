@@ -60,6 +60,7 @@ model product_option {
   product_id Int
   products   product              @relation(fields: [product_id], references: [product_id])
   order_list order_list_product[]
+  cart cart[]
 
   @@index([product_id], map: "product_options_product_id_fkey")
   @@map("product_options")
@@ -99,6 +100,7 @@ model user {
   facebook       user_facebook?
   comment        comment[]
   orders         orders[]
+  cart cart[]
 }
 
 model user_facebook {
@@ -159,4 +161,11 @@ model orders {
   order_list order_list_product[]
 
   @@map("orders_tbl")
+}
+model cart{
+  id Int @id @default(autoincrement())
+  user_id Int
+  option_id Int
+  user user @relation(fields: [user_id],references: [user_id])
+  option product_option @relation(fields: [option_id],references: [id])
 }
