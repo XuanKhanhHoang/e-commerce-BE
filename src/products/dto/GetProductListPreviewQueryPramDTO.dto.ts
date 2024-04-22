@@ -39,4 +39,16 @@ export class GetProductListPreviewQueryPramDTO {
 
   @IsOptional()
   order_col: string | undefined;
+
+  @IsOptional()
+  @IsInt()
+  @Transform(({ value }) => Number.parseInt(value))
+  product_per_page: number | undefined;
+
+  @Transform(({ value }) => {
+    return Array.isArray(value)
+      ? value.map((item) => parseInt(item, 10)).filter((item) => !isNaN(item))
+      : [];
+  })
+  products_id: number[] | undefined;
 }

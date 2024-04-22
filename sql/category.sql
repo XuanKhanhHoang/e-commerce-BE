@@ -1,18 +1,15 @@
 INSERT INTO `DB-ECOMMERCE`.categories
 (name, icon, is_deleted)
-VALUES('Điện thoại', 'fa-solid fa-mobile-screen-button', 0);
+VALUES('Điện Thoại', 'https://drive.usercontent.google.com/download?id=12HRv9l6tzQM99RAgqdsoan0bCR3B7EoA&export=view&authuser=0', 0);
 INSERT INTO `DB-ECOMMERCE`.categories
 (name, icon, is_deleted)
-VALUES('Laptop', 'fa-solid fa-laptop', 0);
+VALUES('Máy Tính Bảng', 'https://drive.usercontent.google.com/download?id=1zVNCvN4i03K9_Qv6wy_VenNRgttjRGY-&export=view&authuser=0', 0);
 INSERT INTO `DB-ECOMMERCE`.categories
 (name, icon, is_deleted)
-VALUES('Máy tính', 'fa-solid fa-computer', 0);
+VALUES('Laptop', 'https://drive.usercontent.google.com/download?id=17hMLwB3qkNRArp2B_3wNPxAeefuqLvft&export=view&authuser=0', 0);
 INSERT INTO `DB-ECOMMERCE`.categories
 (name, icon, is_deleted)
-VALUES('Tai nghe', 'fa-solid fa-headphones', 0);
+VALUES('PC', 'https://drive.usercontent.google.com/download?id=1eYoPad7hcQhhUEwxdtkIY71LywciamtJ&export=view&authuser=0', 0);
 INSERT INTO `DB-ECOMMERCE`.categories
 (name, icon, is_deleted)
-VALUES('Màn hình', 'fa-solid fa-desktop', 0);
-INSERT INTO `DB-ECOMMERCE`.categories
-(name, icon, is_deleted)
-VALUES('Máy tính bảng', 'fa-solid fa-tablet-button', 0);
+VALUES('Tai Nghe', 'https://drive.usercontent.google.com/download?id=1T7QvHcq1gfKLso_BxTyDvzkCNvz7pcP7&export=view&authuser=0', 0);

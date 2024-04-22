@@ -1,4 +1,4 @@
-export interface UserFullDetailAndDeliveringOrder {
+export interface UserFullDetail {
   user_id: number;
   first_name: string;
   last_name: string;
@@ -8,7 +8,6 @@ export interface UserFullDetailAndDeliveringOrder {
   avartar: string;
   login_name: string;
   phone_number: string;
-  orders: Order[];
 }
 
 export interface Order {

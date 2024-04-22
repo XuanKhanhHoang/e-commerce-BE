@@ -11,17 +11,17 @@ model product {
   product_id           Int                    @id @default(autoincrement())
   name                 String
   logo                 String
-  infomation           String                 @db.LongText
   description          String                 @db.LongText
   brand_id             Int
   is_deleted           Boolean                @default(false)
   create_at            DateTime               @default(now())
   update_at            DateTime               @default(now())
   rating               Float                  @default(5)
+  information          String                 @db.LongText
+  comment              comment[]
   product_options      product_option[]
   product_ref_category product_ref_category[]
   brand                brand                  @relation(fields: [brand_id], references: [id])
-  comment              comment[]
 
   @@index([brand_id], map: "products_brand_id_fkey")
   @@map("products")
@@ -58,9 +58,9 @@ model product_option {
   image      String
   is_deleted Boolean              @default(false)
   product_id Int
-  products   product              @relation(fields: [product_id], references: [product_id])
+  cart       cart[]
   order_list order_list_product[]
-  cart cart[]
+  products   product              @relation(fields: [product_id], references: [product_id])
 
   @@index([product_id], map: "product_options_product_id_fkey")
   @@map("product_options")
@@ -95,21 +95,18 @@ model user {
   phone_number   String
   address        String?
   avartar        String?
-  is_deleted     Boolean        @default(true)
-  facebook_id    Int?           @unique
-  facebook       user_facebook?
+  is_deleted     Boolean        @default(false)
+  cart           cart[]
   comment        comment[]
   orders         orders[]
-  cart cart[]
+  facebook       user_facebook?
 }
 
 model user_facebook {
   id         Int    @id @default(autoincrement())
   user_id    Int    @unique
   facebookId String
-  token      String
-
-  user user? @relation(fields: [user_id], references: [user_id])
+  user       user   @relation(fields: [user_id], references: [user_id])
 }
 
 model comment {
@@ -117,13 +114,16 @@ model comment {
   rating         Int             @default(5)
   user_id        Int
   product_id     Int
-  content        String          @db.MediumText()
+  content        String          @db.MediumText
   createAt       DateTime        @default(now())
-  image          comment_image[]
-  seller_reply   String          @db.MediumText()
+  seller_reply   String?         @db.MediumText
   seller_replyAt DateTime        @default(now())
-  user           user?           @relation(fields: [user_id], references: [user_id])
   product        product         @relation(fields: [product_id], references: [product_id])
+  user           user            @relation(fields: [user_id], references: [user_id])
+  image          comment_image[]
+
+  @@index([product_id], map: "comment_product_id_fkey")
+  @@index([user_id], map: "comment_user_id_fkey")
 }
 
 model comment_image {
@@ -131,6 +131,8 @@ model comment_image {
   image      String
   comment_id Int
   comment    comment @relation(fields: [comment_id], references: [id])
+
+  @@index([comment_id], map: "comment_image_comment_id_fkey")
 }
 
 model order_status {
@@ -148,24 +150,41 @@ model order_list_product {
   discount  Int
   option    product_option @relation(fields: [option_id], references: [id])
   order     orders         @relation(fields: [order_id], references: [id])
+
+  @@index([option_id], map: "order_list_product_option_id_fkey")
+  @@index([order_id], map: "order_list_product_order_id_fkey")
 }
 
 model orders {
-  id         Int                  @id @default(autoincrement())
-  createAt   DateTime             @default(now())
-  status_id  Int                  @default(1)
-  user_id    Int
-  //
-  status     order_status         @relation(fields: [status_id], references: [id])
-  user       user                 @relation(fields: [user_id], references: [user_id])
-  order_list order_list_product[]
+  id                Int                  @id @default(autoincrement())
+  createAt          DateTime             @default(now())
+  status_id         Int                  @default(1)
+  user_id           Int
+  payment_method_id Int                  @default(1)
+  order_list        order_list_product[]
+  payment_method    payment_method       @relation(fields: [payment_method_id], references: [id])
+  status            order_status         @relation(fields: [status_id], references: [id])
+  user              user                 @relation(fields: [user_id], references: [user_id])
 
+  @@index([status_id], map: "orders_tbl_status_id_fkey")
+  @@index([user_id], map: "orders_tbl_user_id_fkey")
+  @@index([payment_method_id], map: "orders_tbl_payment_method_id_fkey")
   @@map("orders_tbl")
 }
-model cart{
-  id Int @id @default(autoincrement())
-  user_id Int
+
+model payment_method {
+  id     Int      @id @default(autoincrement())
+  name   String
+  orders orders[]
+}
+
+model cart {
+  id        Int            @id @default(autoincrement())
+  user_id   Int
   option_id Int
-  user user @relation(fields: [user_id],references: [user_id])
-  option product_option @relation(fields: [option_id],references: [id])
+  option    product_option @relation(fields: [option_id], references: [id])
+  user      user           @relation(fields: [user_id], references: [user_id])
+
+  @@index([option_id], map: "cart_option_id_fkey")
+  @@index([user_id], map: "cart_user_id_fkey")
 }

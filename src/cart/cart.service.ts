@@ -12,16 +12,8 @@ export class CartService {
   ): Promise<{
     totalPage: number;
     value: {
-      option: {
-        name: string;
-        price_sell: number;
-        original_price: number;
-        amount: number;
-        discount: number;
-        image: string;
-        id: number;
-      };
       id: number;
+      option: an_product_option;
     }[];
   }> {
     const cartPerPage = 6;
@@ -34,7 +26,7 @@ export class CartService {
     if (total == 0) return { totalPage: 0, value: [] };
     totalPage = Math.ceil(total / cartPerPage);
     if (page > totalPage) throw new BadRequestException('page not found');
-    let cart: any[] = await this.prismaService.cart.findMany({
+    let cart = await this.prismaService.cart.findMany({
       where: {
         user_id: customerId,
       },
@@ -57,49 +49,24 @@ export class CartService {
         },
       },
     });
-    cart.forEach(
-      (item: {
-        id: number;
+    let res: {
+      id: number;
+      option: an_product_option;
+    }[] = cart.map((item) => {
+      return {
+        ...item,
         option: {
-          amount: number;
-          name: string;
-          price_sell: number;
-          discount: number;
-          image: string;
-          products: {
-            name: string;
-          };
-        };
-      }) => {
-        let tmp = {
-          ...item,
-          option: {
-            ...item.option,
-            price_sell:
-              ((100 - item.option.discount) / 100) * item.option.price_sell,
-            original_price: item.option.price_sell,
-          },
-        };
-        item = tmp;
-      },
-    );
+          ...item.option,
+          id: item.option.id,
+          selling_price:
+            ((100 - item.option.discount) / 100) * item.option.price_sell,
+          original_price: item.option.price_sell,
+        },
+      };
+    });
     return {
       totalPage: totalPage,
-      value: cart as {
-        option: {
-          name: string;
-          price_sell: number;
-          original_price: number;
-          amount: number;
-          discount: number;
-          image: string;
-          products: {
-            name: string;
-          };
-          id: number;
-        };
-        id: number;
-      }[],
+      value: res,
     };
   }
   async update(
@@ -150,5 +117,55 @@ export class CartService {
     // } catch (e) {
     //   throw e;
     // }
+  }
+  async delete(
+    customerId: number,
+    cart_id: number,
+  ): Promise<{
+    cart_id: number;
+  }> {
+    const cart = await this.prismaService.cart.count({
+      where: {
+        user_id: customerId,
+        id: cart_id,
+      },
+    });
+    if (cart == 0) throw new BadRequestException('cart_id not found');
+    return this.prismaService.$transaction(async (service) => {
+      try {
+        let res = await service.cart.delete({
+          where: {
+            id: cart_id,
+          },
+        });
+        if (res) {
+          return { cart_id: res.id };
+        }
+      } catch (error) {
+        throw error;
+      }
+    });
+  }
+  async addProrduct(user_id: number, option_id: number) {
+    try {
+      if (
+        (await this.prismaService.cart.count({
+          where: {
+            user_id: user_id,
+            option_id: option_id,
+          },
+        })) >= 1
+      )
+        throw new BadRequestException('this option is exist');
+      let res = await this.prismaService.cart.create({
+        data: {
+          option_id: option_id,
+          user_id: user_id,
+        },
+      });
+      return { cart_id: res.id };
+    } catch (e) {
+      throw e;
+    }
   }
 }

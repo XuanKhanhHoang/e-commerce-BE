@@ -7,7 +7,7 @@ export class UserLoginDTO {
   @IsNotEmpty()
   password: string;
 }
-
+export type LoginResponse = { access_token: string; value: userGeneral };
 export type userGeneral = {
   user_id: number;
   first_name: string;

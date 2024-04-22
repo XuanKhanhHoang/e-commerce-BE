@@ -3,10 +3,11 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UserLoginDTO, userGeneral } from './dto/login.dto';
-import { adminRole, customerRole } from './roles.enum';
+import { LoginResponse, UserLoginDTO, userGeneral } from './dto/login.dto';
+import { Role, adminRole, customerRole } from './roles.enum';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -19,18 +20,13 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
   async GetInfoByAccessToken(token: string): Promise<userGeneral> {
-    // throw new BadRequestException();
     try {
       const {
         user_id: userId,
         role,
-        iat,
-        exp,
       }: {
         user_id: number;
         role: string;
-        iat: number;
-        exp: number;
       } = await this.jwtService.verifyAsync(token, {
         secret: this.configService.get('ACCESS_TOKEN_SECRET'),
       });
@@ -55,9 +51,39 @@ export class AuthService {
       throw new BadRequestException('authorization failed');
     }
   }
-  async Login(
-    data: UserLoginDTO,
-  ): Promise<{ access_token: string; value: userGeneral } | any> {
+  async RefreshInfoByAccessToken(
+    userId: number,
+    role: Role,
+  ): Promise<{ access_token: string; value: userGeneral }> {
+    try {
+      if (userId != undefined && role != adminRole) {
+        let user = await this.prismaService.user.findUnique({
+          where: {
+            is_deleted: false,
+            user_id: userId,
+          },
+        });
+        if (!user) throw new UnauthorizedException('Not found');
+        let access_token = await this.jwtService.signAsync({
+          user_id: user.user_id,
+          role: customerRole,
+        });
+        return {
+          access_token: access_token,
+          value: {
+            user_id: user.user_id,
+            first_name: user.first_name,
+            avatar: user.avartar,
+            ROLE: customerRole,
+          },
+        };
+      }
+    } catch (e) {
+      if (e.status == 500) throw new InternalServerErrorException();
+      throw new BadRequestException('authorization failed');
+    }
+  }
+  async Login(data: UserLoginDTO): Promise<LoginResponse> {
     let user = await this.prismaService.user.findFirst({
       where: {
         login_name: {
@@ -84,24 +110,35 @@ export class AuthService {
       },
     };
   }
-  async Register(): Promise<any> {
-    return;
-  }
-  async AdminLogin() {
-    // let Admin: loginInfoDto = { username: 'Admin', password: 'Khanhpopo1S' };
-    // if (JSON.stringify(data) != JSON.stringify(Admin))
-    //   throw new UnauthorizedException();
-    // let access_token = await this.jwtService.signAsync({
-    //   role: customerRole,
-    // });
-    // return {
-    //   access_token: access_token,
-    //   value: {
-    //     CUSTOMER_ID: '',
-    //     FIRST_NAME: '',
-    //     AVATAR: '',
-    //     ROLE: adminRole,
-    //   },
-    // };
+  async LoginByFacebook(email: string, fb_id: string): Promise<LoginResponse> {
+    let { user_id, user } = await this.prismaService.user_facebook.findFirst({
+      where: {
+        facebookId: fb_id,
+      },
+      select: {
+        user_id: true,
+        user: {
+          select: {
+            first_name: true,
+            avartar: true,
+          },
+        },
+      },
+    });
+    let { avartar, first_name } = user;
+    if (!user_id) throw new NotFoundException("user isn't registered");
+    let access_token = await this.jwtService.signAsync({
+      user_id: user_id,
+      role: customerRole,
+    });
+    return {
+      access_token: access_token,
+      value: {
+        user_id: user_id,
+        first_name: first_name,
+        avatar: avartar,
+        ROLE: customerRole,
+      },
+    };
   }
 }

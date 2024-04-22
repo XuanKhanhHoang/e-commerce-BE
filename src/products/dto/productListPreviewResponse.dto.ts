@@ -5,5 +5,6 @@ type productOfproductListPreviewResponse = {
   name: string;
   product_id: number;
   logo: string;
+  rating: number;
 };
 type productListPreviewResponse = productOfproductListPreviewResponse[];

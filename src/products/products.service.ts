@@ -1,9 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { Prisma, product } from '@prisma/client';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma, brand, comment, product } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { raw } from '@prisma/client/runtime/library';
 @Injectable()
@@ -37,13 +33,15 @@ export class ProductService {
     rating: string[] | string | undefined,
     order_type: 'ASC' | 'DESC' = 'ASC',
     order_col: string = 'update_at',
+    productPerPage: number = 6,
+    products_id: number[] | undefined,
   ): Promise<{
     data: productListPreviewResponse;
     totalPage: number;
-    categoryName: string;
   }> {
+    //NOTE: IF PRODUCT ONLY HAVE PRODUCT INFORMATION AND 0 OPTION , IT WILL NOT APPEAR IN RESULT
+    //BIG BUG: SQL INJECTION STILL EXIST
     try {
-      let categoryName = '';
       if (category_id) {
         let category = await this.prismaService.category.findUnique({
           where: {
@@ -55,7 +53,6 @@ export class ProductService {
           },
         });
         if (!category) throw new BadRequestException('category_id not found');
-        categoryName = category.name;
       }
       if (max_price < 0 || min_price < 0 || min_price > max_price)
         throw new BadRequestException('Price condition invalid');
@@ -125,23 +122,30 @@ export class ProductService {
       ) po 
       on p.product_id  = po.product_id WHERE  p.product_id  IN (
         SELECT product_id
-        FROM product_ref_category
-        WHERE category_id = ${category_id || true}
+        FROM product_ref_category ${raw(
+          category_id != undefined ? `WHERE category_id = ${category_id}` : ' ',
+        )} ${
+          products_id != undefined
+            ? raw(
+                (category_id != undefined ? ` AND ` : ' WHERE ') +
+                  `  product_id IN (${products_id.join()}) `,
+              )
+            : raw('')
+        }
       ) 
       ${brandIdCondition}
        ${keywordCondition}
        ${priceCondition}
        ${ratingCondition}
        `;
-      const productPerPage = 4;
+
       //Total Number of data
       let totalData = Number(
         (await this.prismaService.$queryRaw<any>(sql, [keyword]))[0].count,
       );
       let totalPage: number = Math.ceil(totalData / productPerPage);
       //handle exception page dand data not found
-      if (totalData == 0)
-        return { data: [], totalPage: 0, categoryName: categoryName };
+      if (totalData == 0) return { data: [], totalPage: 0 };
       if (page <= 0 || page > totalPage)
         throw new BadRequestException('page not valid');
       //Main PrismaSql get Data
@@ -153,6 +157,7 @@ export class ProductService {
           price_sell: number;
           discount: number;
           original_price: number;
+          rating: number;
         }[]
       >`SELECT 
       p.name,p.rating, logo, p.product_id, po.price_sell, po.discount,po.original_price
@@ -163,7 +168,19 @@ export class ProductService {
             AND p.product_id IN (
               SELECT product_id
               FROM product_ref_category
-              WHERE category_id = ${category_id || true}
+              ${raw(
+                category_id != undefined
+                  ? `WHERE category_id = ${category_id}`
+                  : '',
+              )} 
+              ${
+                products_id != undefined
+                  ? raw(
+                      (category_id != undefined ? `AND ` : 'WHERE ') +
+                        ` product_id IN (${products_id.join()}) `,
+                    )
+                  : raw('')
+              }
             )
              ${brandIdCondition} 
              ${keywordCondition}
@@ -179,15 +196,69 @@ export class ProductService {
           (item.discount = Number(item.discount)),
           (item.original_price = Number(item.original_price));
       });
-      if (data.length == 0)
-        return { data: [], totalPage: 0, categoryName: categoryName };
-      return { data: data, totalPage, categoryName: categoryName };
+      if (data.length == 0) return { data: [], totalPage: 0 };
+      return { data: data, totalPage };
     } catch (e) {
       if (e.status == 500) console.log('error productlist: ', e);
       throw e;
     }
   }
-  async getAnProductDetail(product_id: number) {
+  async getProductOptionBasicInfoList(
+    page = 1,
+    product_per_page = 6,
+    products_options_id: number[] | undefined,
+  ): Promise<{
+    totalPage: number;
+    value: an_product_option[];
+  }> {
+    if (products_options_id == undefined || products_options_id.length == 0)
+      throw new BadRequestException('products_options_id mustbe not empty');
+    let totalPage = 0;
+    const total = await this.prismaService.product_option.count({
+      where: {
+        id: {
+          in: products_options_id,
+        },
+        is_deleted: false,
+      },
+    });
+    if (total == 0) return { totalPage: 0, value: [] };
+    totalPage = Math.ceil(total / product_per_page);
+    if (page > totalPage) throw new BadRequestException('page not found');
+    let product_option_list = await this.prismaService.product_option.findMany({
+      where: {
+        id: {
+          in: products_options_id,
+        },
+        is_deleted: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        discount: true,
+        amount: true,
+        price_sell: true,
+        products: {
+          select: {
+            name: true,
+          },
+        },
+        image: true,
+      },
+    });
+    let res: an_product_option[] = product_option_list.map((item) => {
+      return {
+        ...item,
+        selling_price: ((100 - item.discount) / 100) * item.price_sell,
+        original_price: item.price_sell,
+      };
+    });
+    return {
+      totalPage: totalPage,
+      value: res,
+    };
+  }
+  async getAnProductDetail(product_id: number): Promise<product_detail> {
     if (!product_id || product_id < 0)
       throw new BadRequestException('product_id not valid');
     let product = await this.prismaService.product.findUnique({
@@ -200,7 +271,7 @@ export class ProductService {
         name: true,
         description: true,
         product_id: true,
-        infomation: true,
+        information: true,
         rating: true,
         product_options: {
           select: {
@@ -240,12 +311,12 @@ export class ProductService {
       },
     });
     if (!product) throw new BadRequestException('Product not found');
-    let options = product.product_options.map((item) => {
+    let options: an_product_option[] = product.product_options.map((item) => {
       let price = item.price_sell;
       delete item.price_sell;
       return {
-        originalPrice: price,
-        price: (price * (100 - item.discount)) / 100,
+        original_price: price,
+        selling_price: (price * (100 - item.discount)) / 100,
         ...item,
       };
     });

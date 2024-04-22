@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  ParseIntPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 
@@ -11,9 +20,17 @@ export class CartController {
     const customer_id = (req as any).user.user_id;
     return this.cartService.get(customer_id);
   }
-  @Post('updatecart')
-  updateCart(@Req() req: Request, @Body() bd) {
+  @Post('addproduct')
+  addProductToCart(
+    @Req() req: Request,
+    @Body('option_id', ParseIntPipe) option_id: number,
+  ) {
     const customer_id = (req as any).user.user_id;
-    return this.cartService.update(customer_id, bd);
+    return this.cartService.addProrduct(customer_id, option_id);
+  }
+  @Delete('deleteproduct')
+  delete(@Req() req: Request, @Body('cart_id', ParseIntPipe) cart_id: number) {
+    const customer_id = (req as any).user.user_id;
+    return this.cartService.delete(customer_id, cart_id);
   }
 }
