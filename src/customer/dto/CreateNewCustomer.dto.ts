@@ -7,6 +7,8 @@ import {
   IsNumber,
   IsOptional,
 } from 'class-validator';
+import { ValidPhoneNumber } from '../decorators/ValidPhoneNumber.decorator';
+import { ValidCustomerAddress } from '../decorators/ValidCustomerAddress.decorator';
 
 export class CreateNewCustomer {
   @IsNotEmpty()
@@ -20,6 +22,7 @@ export class CreateNewCustomer {
   email: string;
 
   @IsNotEmpty()
+  @ValidPhoneNumber()
   phone_number: string;
 
   @IsNotEmpty()
@@ -29,6 +32,7 @@ export class CreateNewCustomer {
   last_name: string;
 
   @IsNotEmpty()
+  @ValidCustomerAddress()
   address: string;
 
   @IsNotEmpty()

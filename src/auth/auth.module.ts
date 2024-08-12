@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { FacebookAuthModule } from 'facebook-auth-nestjs';
+import { MailerService } from '@nestjs-modules/mailer';
 @Module({
   imports: [
     JwtModule.register({

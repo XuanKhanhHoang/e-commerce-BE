@@ -212,7 +212,7 @@ export class ProductService {
     value: an_product_option[];
   }> {
     if (products_options_id == undefined || products_options_id.length == 0)
-      throw new BadRequestException('products_options_id mustbe not empty');
+      throw new BadRequestException('products_options_id must be not empty');
     let totalPage = 0;
     const total = await this.prismaService.product_option.count({
       where: {

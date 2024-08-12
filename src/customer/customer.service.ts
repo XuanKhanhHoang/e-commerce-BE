@@ -15,6 +15,7 @@ import { JwtService } from '@nestjs/jwt';
 import { customerRole } from 'src/auth/roles.enum';
 import { CreateNewCustomerAndFacebookToken } from './dto/CreateNewCustomerAndFacebookToken.dto';
 import { FacebookAuthService } from 'facebook-auth-nestjs';
+import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class CustomerService {
@@ -23,7 +24,9 @@ export class CustomerService {
     private googleDriveService: GoogleDriveService,
     private jwtService: JwtService,
     private readonly facebookService: FacebookAuthService,
+    private readonly mailerService: MailerService,
   ) {}
+  private mailer_name = `"KTH Tech Shop " <Khanhpopo056@gmail.com>`;
   private async checkIsValidRegisterCustomerData(
     data: CreateNewCustomerAndFacebookToken | CreateNewCustomer,
   ) {
@@ -87,11 +90,35 @@ export class CustomerService {
         409,
       );
   }
+  public async createOTP(otp_type: number, email: string, validTime = 900000) {
+    const min = 100000;
+    const max = 999999;
+    const otp = Math.floor(Math.random() * (max - min + 1)) + min;
+    let currentTime = new Date().getTime();
+    // Lấy độ lệch múi giờ của máy chủ/client (trả về giá trị tính bằng phút)
+    let timezoneOffset = new Date().getTimezoneOffset() * 60000; // Chuyển đổi sang mili giây
+    // Tạo thời gian không hợp lệ mới dựa trên múi giờ cục bộ
+    let invalidTime = new Date(currentTime - timezoneOffset + validTime);
+    const data = await this.prismaService.otp_code_queue.create({
+      data: {
+        code: otp,
+        email: email,
+        type: otp_type,
+        invalid_time: invalidTime,
+      },
+      select: {
+        code: true,
+        id: true,
+      },
+    });
+    return data;
+  }
   async getCustomerDetail(customerId: number): Promise<UserFullDetail> {
     let customer = await this.prismaService.user.findUnique({
       where: {
         user_id: customerId,
         is_deleted: false,
+        is_auth: true,
       },
       select: {
         user_id: true,
@@ -125,9 +152,10 @@ export class CustomerService {
     let avatar: string | undefined;
 
     if (file != undefined) {
-      avatar = 'user' + user_id + '_avatar';
-      avatar = await this.googleDriveService.uploadFile(file, avatar);
-      if (!avatar) {
+      try {
+        avatar = 'user' + user_id + '_avatar';
+        avatar = await this.googleDriveService.uploadFile(file, avatar);
+      } catch (e) {
         throw new InternalServerErrorException('Upload avatar image error');
       }
     }
@@ -150,10 +178,6 @@ export class CustomerService {
           new_user_detail.last_name != undefined
             ? new_user_detail.last_name
             : user.last_name,
-        email:
-          new_user_detail.email != undefined
-            ? new_user_detail.email
-            : user.email,
         phone_number:
           new_user_detail.phone_number != undefined
             ? new_user_detail.phone_number
@@ -168,7 +192,29 @@ export class CustomerService {
     if (res.user_id) return res.user_id;
     throw new InternalServerErrorException('Error to update');
   }
-  async createNewCustomer(data: CreateNewCustomer, file: Express.Multer.File) {
+  async checkEmailBeforeRegisterUser(email: string) {
+    const otp_code_type_register = 1;
+    const { code: otp } = await this.createOTP(otp_code_type_register, email);
+    return this.mailerService.sendMail({
+      from: 'this.mailer_name', // sender address
+      to: email, // list of receivers
+      subject: 'Xác thực email cho KTH Tech Shop', // Subject line
+      text: `Vui lòng Click vào link dưới để xác thực email hoặc nhập OTP là : ${otp}`, // plain text body
+      html: `<a href="http://localhost:8081/api/v1/auth/otp_register/${otp}" style="
+      text-decoration: none;
+      padding: 12px;
+      color: WHITE;
+      background-color: #6af86a;
+      text-align: center;
+      margin: 0 auto;
+      width: 40%;
+      display: block;
+      border-radius: 5px;
+      font-size: 0.9rem;
+  ">Click vào đây để xác thực </a>`, // html body
+    });
+  }
+  async createNewCustomer(data: CreateNewCustomer) {
     let {
       address,
       email,
@@ -179,20 +225,11 @@ export class CustomerService {
       phone_number,
       user_name,
     } = data;
-
     this.checkIsValidRegisterCustomerData(data);
     let hashedPassword = await bcrypt.hash(
       password,
       Number(process.env.HASH_ROUND),
     );
-    let avatar;
-    if (file != undefined) {
-      avatar = 'user' + user_name + '_avatar';
-      avatar = await this.googleDriveService.uploadFile(file, avatar);
-      if (!avatar) {
-        throw new InternalServerErrorException('Upload avatar image error');
-      }
-    }
     let user = await this.prismaService.user.create({
       data: {
         email,
@@ -203,7 +240,6 @@ export class CustomerService {
         gender: gender_IsMale,
         last_name,
         first_name,
-        avartar: avatar,
         is_deleted: false,
       },
       select: {
@@ -212,80 +248,118 @@ export class CustomerService {
         avartar: true,
       },
     });
-    let access_token = await this.jwtService.signAsync({
-      user_id: user.user_id,
-      role: customerRole,
-    });
+    await this.checkEmailBeforeRegisterUser(email);
     return {
-      access_token: access_token,
       value: {
         user_id: user.user_id,
         first_name: user.first_name,
-        avatar: user.avartar,
-        ROLE: customerRole,
+        status: 'UnAuthenticated',
+        message: 'Please open your email and authentic your account',
       },
     };
   }
-  async createNewCustomerAndFacebookToken(
-    data: CreateNewCustomerAndFacebookToken,
-    file: Express.Multer.File,
-  ) {
-    let {
-      address,
-      email,
-      first_name,
-      gender: gender_IsMale,
-      last_name,
-      password,
-      phone_number,
-      user_name,
-      access_token: fb_token,
-    } = data;
-    let { id } = await this.facebookService.getUser(fb_token, 'id');
-    this.checkIsValidRegisterCustomerData(data);
-    let hashedPassword = await bcrypt.hash(
-      password,
-      Number(process.env.HASH_ROUND),
-    );
-    let avatar;
-    if (file != undefined) {
-      avatar = 'user' + user_name + '_avatar';
-      avatar = await this.googleDriveService.uploadFile(file, avatar);
-      if (!avatar) {
-        throw new InternalServerErrorException('Upload avatar image error');
-      }
-    }
-    let user = await this.prismaService.user.create({
-      data: {
-        email,
-        login_name: user_name,
-        login_password: hashedPassword,
-        phone_number: phone_number,
-        address,
-        gender: gender_IsMale,
-        last_name,
-        first_name,
-        avartar: avatar,
+  async ChangePassword(newPassword: string, user_id: number) {
+    if (newPassword.length < 6)
+      throw new BadRequestException('new password is too short');
+    const user = await this.prismaService.user.findFirst({
+      where: {
+        user_id: user_id,
         is_deleted: false,
+        is_auth: true,
       },
       select: {
         user_id: true,
-        first_name: true,
-        avartar: true,
       },
     });
-    let access_token = await this.jwtService.signAsync({
-      user_id: user.user_id,
-      role: customerRole,
+    if (!user) throw new NotFoundException('user not found');
+    let hashedPassword = await bcrypt.hash(
+      newPassword,
+      Number(process.env.HASH_ROUND),
+    );
+    await this.prismaService.user.update({
+      where: {
+        user_id: user_id,
+      },
+      data: {
+        login_password: hashedPassword,
+      },
     });
     return {
-      access_token: access_token,
-      value: {
-        user_id: user.user_id,
-        first_name: user.first_name,
-        avatar: user.avartar,
-        ROLE: customerRole,
+      user_id: user_id,
+    };
+  }
+
+  async GetOTPtoForgotPassword(email: string) {
+    const res = await this.prismaService.user.findFirst({
+      where: {
+        email: email,
+        is_auth: true,
+        is_deleted: false,
       },
+      select: {
+        email: true,
+        login_name: true,
+      },
+    });
+    if (!res) throw new NotFoundException('user not found');
+    const otp_code_type_reset_password = 2;
+    const { code: otp } = await this.createOTP(
+      otp_code_type_reset_password,
+      email,
+    );
+    await this.mailerService.sendMail({
+      from: 'this.mailer_name', // sender address
+      to: email, // list of receivers
+      subject: 'Quên mật khẩu cho tài khoản ' + res.login_name || 'user', // Subject line
+      text: `Vui lòng nhập OTP là : ${otp}`, // plain text body
+      html: `Mã OTP cho việc quên mật khẩu của bạn là :${otp}`, // html body
+    });
+    return {
+      success: true,
+    };
+  }
+  async GetForgotPasswordLink(email: string) {
+    const res = await this.prismaService.user.findFirst({
+      where: {
+        email: email,
+        is_auth: true,
+        is_deleted: false,
+      },
+      select: {
+        email: true,
+        login_name: true,
+        user_id: true,
+      },
+    });
+    if (!res) throw new NotFoundException('user not found');
+    const access_token = await this.jwtService.signAsync({
+      user_id: res.user_id,
+      role: customerRole,
+    });
+    const makeChangePasswordLink = (access_token: string, email: string) =>
+      `http://localhost:3000/auth/resetpassword?access_token=${encodeURI(
+        access_token,
+      )}&email=${encodeURI(email)}`;
+    await this.mailerService.sendMail({
+      from: 'this.mailer_name', // sender address
+      to: email, // list of receivers
+      subject: 'Quên mật khẩu cho tài khoản ' + res.login_name || 'user', // Subject line
+      text: `Vui lòng click vào link dưới để thay đổi mật khẩu`, // plain text body
+      html: `<a href="${makeChangePasswordLink(access_token, email)}" style="
+      text-decoration: none;
+      padding: 12px;
+      color: WHITE;
+      background-color: #6af86a;
+      text-align: center;
+      margin: 0 auto;
+      width: 40%;
+      display: block;
+      border-radius: 5px;
+      font-size: 0.9rem;
+  ">Click vào đây để thay đổi mật khẩu </a>`, // html body
+    });
+    return {
+      success: true,
     };
   }
 }

@@ -1,9 +1,13 @@
 import {
   Body,
   Controller,
+  FileTypeValidator,
   Get,
+  HttpCode,
   InternalServerErrorException,
   Logger,
+  MaxFileSizeValidator,
+  ParseFilePipe,
   ParseIntPipe,
   Post,
   Put,
@@ -22,6 +26,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { updateUserDetailDTO } from './dto/updateUserDetail.dto';
 import { CreateNewCustomer } from './dto/CreateNewCustomer.dto';
 import { CreateNewCustomerAndFacebookToken } from './dto/CreateNewCustomerAndFacebookToken.dto';
+import { EmailDTO } from './dto/EmailDTO.dto';
 @Controller('customer')
 export class CustomerController {
   constructor(private customerService: CustomerService) {}
@@ -35,6 +40,7 @@ export class CustomerController {
   @Put('update_detail')
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('avatar'))
+  @HttpCode(200)
   @UsePipes(
     new ValidationPipe({
       transform: true,
@@ -42,7 +48,16 @@ export class CustomerController {
   )
   @UseGuards(AuthGuard)
   async updateDetail(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 3000 }),
+          new FileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ }),
+        ],
+        fileIsRequired: false,
+      }),
+    )
+    file: Express.Multer.File,
     @Body() body: updateUserDetailDTO,
     @Req() req: Request,
   ) {
@@ -56,20 +71,25 @@ export class CustomerController {
   }
 
   @Post('create_new_customer')
-  @UseInterceptors(FileInterceptor('avatar'))
-  async createNewCustomer(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: CreateNewCustomer,
-  ) {
-    return this.customerService.createNewCustomer(body, file);
+  async createNewCustomer(@Body() body: CreateNewCustomer) {
+    return this.customerService.createNewCustomer(body);
   }
-
-  @Post('create_new_customer_and_facbook_token')
-  @UseInterceptors(FileInterceptor('avatar'))
-  async createNewCustomerAndFacebookToken(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: CreateNewCustomerAndFacebookToken,
+  @Post('app/get_otp_to_forgot_password')
+  async GetOTPtoForgotPassword(@Body() body: EmailDTO) {
+    return this.customerService.GetOTPtoForgotPassword(body.email);
+  }
+  @Post('web/get_forgot_password_link')
+  async GetForgotPasswordLink(@Body() body: EmailDTO) {
+    return this.customerService.GetForgotPasswordLink(body.email);
+  }
+  @Post('change_password')
+  @UseGuards(AuthGuard)
+  @HttpCode(200)
+  async ChangePassword(
+    @Req() req: Request,
+    @Body('new_password') newPassword: string,
   ) {
-    return this.customerService.createNewCustomerAndFacebookToken(body, file);
+    const customer_id = (req as any).user.user_id;
+    return this.customerService.ChangePassword(newPassword, customer_id);
   }
 }

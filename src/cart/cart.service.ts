@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -156,7 +156,7 @@ export class CartService {
           },
         })) >= 1
       )
-        throw new BadRequestException('this option is exist');
+        throw new HttpException('this option is exist', 409);
       let res = await this.prismaService.cart.create({
         data: {
           option_id: option_id,

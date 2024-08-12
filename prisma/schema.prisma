@@ -61,7 +61,6 @@ model product_option {
   cart       cart[]
   order_list order_list_product[]
   products   product              @relation(fields: [product_id], references: [product_id])
-
   @@index([product_id], map: "product_options_product_id_fkey")
   @@map("product_options")
 }
@@ -92,10 +91,11 @@ model user {
   email          String         @unique
   login_name     String
   login_password String
-  phone_number   String
+  phone_number   String?
   address        String?
   avartar        String?
   is_deleted     Boolean        @default(false)
+  is_auth        Boolean        @default(false)
   cart           cart[]
   comment        comment[]
   orders         orders[]
@@ -117,7 +117,7 @@ model comment {
   content        String          @db.MediumText
   createAt       DateTime        @default(now())
   seller_reply   String?         @db.MediumText
-  seller_replyAt DateTime        @default(now())
+  seller_replyAt DateTime?        @default(now())
   product        product         @relation(fields: [product_id], references: [product_id])
   user           user            @relation(fields: [user_id], references: [user_id])
   image          comment_image[]
@@ -165,7 +165,12 @@ model orders {
   payment_method    payment_method       @relation(fields: [payment_method_id], references: [id])
   status            order_status         @relation(fields: [status_id], references: [id])
   user              user                 @relation(fields: [user_id], references: [user_id])
-
+  value             Int                  
+  recipient_name    String
+  phone_number      String
+  receivedAt        DateTime?
+  delivery_address  String
+  deliver_fee Int
   @@index([status_id], map: "orders_tbl_status_id_fkey")
   @@index([user_id], map: "orders_tbl_user_id_fkey")
   @@index([payment_method_id], map: "orders_tbl_payment_method_id_fkey")
@@ -187,4 +192,19 @@ model cart {
 
   @@index([option_id], map: "cart_option_id_fkey")
   @@index([user_id], map: "cart_user_id_fkey")
+}
+model otp_code_queue{
+  id        Int            @id @default(autoincrement())
+  code Int 
+  email String
+  type Int
+  invalid_time DateTime 
+  otp_code_type otp_code_type  @relation(fields: [type], references: [id])
+  is_valid Boolean @default(true)
+ 
+}
+model otp_code_type{
+  id        Int            @id @default(autoincrement())
+  type String
+  otp_code_queue otp_code_queue[]
 }

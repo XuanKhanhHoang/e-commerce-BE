@@ -5,26 +5,31 @@ import {
   ParseArrayPipe,
   ParseIntPipe,
   Query,
+  UseInterceptors,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { ProductService } from './products.service';
 import { GetProductListPreviewQueryPramDTO } from './dto/GetProductListPreviewQueryPramDTO.dto';
 import { GetProductOptionBasicInfoList } from './dto/GetProductBasicInfoList.dto';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 
 @Controller('product')
 export class ProductsController {
   constructor(private readonly productsService: ProductService) {}
 
+  @UseInterceptors(CacheInterceptor)
   @Get('/categorylist')
   async getCategoryList() {
     return this.productsService.getCategoryList();
   }
   @Get('/brandlist')
+  @UseInterceptors(CacheInterceptor)
   async getBrandList() {
     return this.productsService.getBrandList();
   }
   @Get('/productlist')
+  @UseInterceptors(CacheInterceptor)
   async getProductPreviewList(
     @Query() query: GetProductListPreviewQueryPramDTO,
   ) {

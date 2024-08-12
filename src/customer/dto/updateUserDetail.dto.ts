@@ -7,6 +7,8 @@ import {
   IsOptional,
   isEmail,
 } from 'class-validator';
+import { ValidPhoneNumber } from '../decorators/ValidPhoneNumber.decorator';
+import { ValidCustomerAddress } from '../decorators/ValidCustomerAddress.decorator';
 
 export class updateUserDetailDTO {
   @IsOptional()
@@ -22,14 +24,12 @@ export class updateUserDetailDTO {
   @Transform(({ value }) => Boolean(value))
   @IsBoolean()
   gender: boolean;
-  @IsNotEmpty()
-  @IsOptional()
-  @IsEmail()
-  email: string;
   @IsOptional()
   @IsNotEmpty()
+  @ValidPhoneNumber()
   phone_number: string;
   @IsOptional()
   @IsNotEmpty()
+  @ValidCustomerAddress()
   address: string;
 }

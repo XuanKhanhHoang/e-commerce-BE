@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
 } from 'class-validator';
+import { ValidPhoneNumber } from '../decorators/ValidPhoneNumber.decorator';
 
 export class CreateNewCustomerAndFacebookToken {
   @IsNotEmpty()
@@ -23,6 +24,7 @@ export class CreateNewCustomerAndFacebookToken {
   email: string;
 
   @IsNotEmpty()
+  @ValidPhoneNumber()
   phone_number: string;
 
   @IsNotEmpty()

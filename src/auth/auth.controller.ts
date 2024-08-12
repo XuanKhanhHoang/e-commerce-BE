@@ -3,7 +3,9 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   NotFoundException,
+  Param,
   Post,
   Req,
   UnauthorizedException,
@@ -15,6 +17,7 @@ import { AuthService } from './auth.service';
 import { UserLoginDTO } from './dto/login.dto';
 import { AuthGuard } from './auth.guard';
 import { FacebookAuthService } from 'facebook-auth-nestjs';
+import { OTPAuthForgotPassword } from './dto/OTPAuthForgotPassword.dto';
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -22,11 +25,6 @@ export class AuthController {
     private readonly facebookService: FacebookAuthService,
   ) {}
 
-  @Post('/getinfobyaccesstoken')
-  GetInfoByAccessToken(@Body('token') token: string) {
-    if (token == undefined) throw new BadRequestException();
-    return this.authServices.GetInfoByAccessToken(token);
-  }
   @UseGuards(AuthGuard)
   @Post('/refreshinfobyaccesstoken')
   RefreshInfoByAccessToken(@Req() req: Request) {
@@ -43,17 +41,25 @@ export class AuthController {
   }
   @Post('/login_by_facebook')
   async LoginByFacbook(@Body('access_token') access_token) {
-    console.log(access_token);
-
     const {
       email,
       id: facbook_id,
       name,
     } = await this.facebookService.getUser(access_token, 'id', 'email', 'name');
-    if (!facbook_id || email)
+    if (!facbook_id || !email)
       throw new NotFoundException(
         "can't find facbook account from access_token",
       );
     return this.authServices.LoginByFacebook(email, facbook_id);
+  }
+  @Get('/otp_register/:otp')
+  OTPAuthRegister(@Param('otp') otp: String) {
+    if (otp == undefined || otp.length != 6 || Number.isNaN(Number(otp)))
+      throw new BadRequestException('OTP Invalid');
+    return this.authServices.AuthRegisterOTP(otp);
+  }
+  @Post('app/otp_forgot_password')
+  OTPAuthForgotPassword(@Body() data: OTPAuthForgotPassword) {
+    return this.authServices.AuthForgotPasswordOTP(data);
   }
 }
